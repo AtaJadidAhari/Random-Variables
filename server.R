@@ -1,9 +1,153 @@
 library(shiny)
-library(ggplot2)
+require("ggplot2")
+pkgs <- c("VGAM")
+pkgs <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
+if(length(pkgs)) install.packages(pkgs,repos="http://cran.cs.wwu.edu/")
+library(VGAM)
+library(DT)
+
+load("samplingApp.RData", envir=.GlobalEnv)
+
+require("bitops")
+
+
+MT <-setClass(
+  "MT",
+  
+  #slots
+  slots = c(
+    seed = "numeric",
+    next_ = "numeric",
+    state = "numeric"
+  ),
+  
+  prototype = list(
+    seed = 5489,
+    state = vector("numeric", 624),
+    next_ = 0
+  )
+)
+
+setGeneric(name = "init",
+           def = function(this){
+             standardGeneric("init")
+           }
+)
+
+setMethod(f="init",
+          signature = "MT",
+          definition = function(this){
+            this@state[1] = this@seed;
+            temp = 0
+            testVec <- c()
+            for (i in 2:624) {
+              s = bitXor(this@state[i - 1], bitShiftR(this@state[i - 1], 30));
+              temp = bitAnd(s, 0xffff0000)
+              temp = bitShiftR(temp, 16)
+              temp = temp * 1812433253
+              temp = temp %% (2^32)
+              temp = bitShiftL(temp, 16)
+              temp = temp + bitAnd(s, 0x0000ffff) * 1812433253
+              temp = temp %% (2^32)
+              temp = temp + i - 1
+              this@state[i] = temp
+              
+            }   
+            this <- twist(this)
+            return(this)
+          }
+)
+
+
+setGeneric(name = "twist",
+           def = function(this){
+             standardGeneric("twist")
+           }
+)
+
+setMethod(f="twist",
+          signature = "MT",
+          definition = function(this){
+            temp1 = 0
+            temp2 = 0
+            for(i in 1:227){
+              bits = bitOr(bitAnd(this@state[i] , 0x80000000), bitAnd(this@state[i + 1] , 0x7fffffff));
+              temp1 = bitXor(this@state[i + 397], (bits / 2));
+              temp2 = bitAnd(bits, 1) * 0x9908b0df
+              this@state[i] = bitXor(temp1, temp2)
+            } 
+            for(i in 228:623){
+              bits = bitOr(bitAnd(this@state[i] , 0x80000000), bitAnd(this@state[i + 1] , 0x7fffffff));
+              temp1 = bitXor(this@state[i - 227], (bits / 2));
+              temp2 = bitAnd(bits, 1) * 0x9908b0df
+              this@state[i] = bitXor(temp1, temp2)
+            }
+            bits = bitOr(bitAnd(this@state[624] , 0x80000000), bitAnd(this@state[1] , 0x7fffffff));
+            temp1 = bitXor(this@state[397], (bits / 2));
+            temp2 = bitAnd(bits, 1) * 0x9908b0df
+            this@state[624] = bitXor(temp1, temp2)
+            this@next_ = 1
+            return(this)
+          }
+)
+
+setGeneric(name = "random",
+           def = function(this){
+             standardGeneric("random")
+           }
+)
+
+
+setMethod(f="random",
+          signature = "MT",
+          definition = function(this){
+            x = this@state[this@next_]
+            x = bitXor(x, bitShiftR(x, 11))
+            x = bitXor(x, bitAnd(0x9d2c5680, bitShiftL(x, 7)))
+            x = bitXor(x, bitAnd(0xefc60000, bitShiftL(x, 15)))
+            x = bitXor(x, bitShiftR(x, 18))
+            return(x)            
+          }
+)
+
+
+rgenerator <- function(seed, numOfReapeat){
+  mt <- MT(seed=seed)
+  mt <- init(mt)
+  res <- c()
+  for(i in 1:numOfReapeat){
+    res <- c(res, random(mt))
+    mt@next_ = mt@next_ + 1
+    if(mt@next_ >= 625){
+      mt <- twist(mt)
+    }
+  }
+  return(res)
+}
+
+random_nums <- rgenerator(seed = as.integer((as.double(Sys.time())*1000+Sys.getpid()) %% 2^31), numOfReapeat = 1000)
+w <- 0
+
+dugen <- function(n, min= 0, max= 1) {
+  w <<- w + n
+  v <- min +  sample(random_nums, size = n) * (max - min) / 4294967296.0
+  if(w > 1000){
+    random_nums <<- rgenerator(seed = as.integer((as.double(Sys.time())*1000+Sys.getpid()) %% 2^31), numOfReapeat = 1000)
+    w <<- 0
+  }
+  return(v)
+}
 
 cugen <- function(n){
-  return(runif(n,0,1))
+  w <<- w + n  
+  v <- sample(random_nums, size = n) / 4294967296.0 
+  if(w > 1000){
+    random_nums <<- rgenerator(seed = as.integer((as.double(Sys.time())*1000+Sys.getpid()) %% 2^31), numOfReapeat = 1000)
+    w <<- 0
+  }
+  return(v)
 }
+
 
 brgen <- function(p){
   x <- cugen(1)
@@ -14,22 +158,9 @@ brgen <- function(p){
     return(1)
 }
 
-brgenPlot <- function(simulations, p){
-  x <- replicate(simulations, brgen(p))
-  
-  df <- as.data.frame(x)
-  
-  
-  myPlot <- ggplot(data=df, aes(x)) + 
-    geom_histogram(binwidth = 1, 
-                   col="red", 
-                   aes(fill=..count..)) + 
-    theme(panel.background = element_rect(fill = 'white', colour = 'white')) +
-    scale_fill_distiller(palette = "Spectral")
-  
-  return(myPlot)
+brgen_n <- function(n, bern.prob = 0.5){
+  return(replicate(n, brgen(bern.prob)))
 }
-
 
 bigen <- function(n, p){
   
@@ -43,26 +174,13 @@ bigen <- function(n, p){
   return(res)
 }
 
-
-bigenPlot <- function(simulations, n, p){
-  x <- replicate(simulations, bigen(n,p))
-  df <- as.data.frame(x)
-
-
-  myPlot <- ggplot(data=df, aes(x)) + 
-    geom_histogram(binwidth = 1, 
-                   col="red", 
-                   aes(fill=..count..)) + 
-    theme(panel.background = element_rect(fill = 'white', colour = 'white')) +
-    scale_fill_distiller(palette = "Spectral")
-  
-  return(print(myPlot))
+bigen_n <- function(n, binom.size = 10, binom.prob = 0.5){
+  return(replicate(n, bigen(binom.size, binom.prob)))
 }
-
 
 nogen <- function(u, s){
   
-  x <- rpois(1, 100000) #it has to be changed to pogen(1, 1000000)
+  x <- rpois(1, 100000) 
   x = x - 100000
   x = x * sqrt(s)
   x = x + u
@@ -70,84 +188,215 @@ nogen <- function(u, s){
   return(x)
 }
 
+nogen_n <- function(n, mean= 0, sd= 1){
+  return(replicate(n, nogen(mean, sd)))
+}
 
-nogenPlot <- function(simulations = 10, u = 0, s = 1){
-  
-  
-  set.seed(123)
-  x <- replicate(simulations, nogen(u, s))
-  
-  y <- density(x, n = 2^12)
-  myPlot <- ggplot(data.frame(x = y$x, y = y$y), aes(x, y)) + geom_line() + 
-    geom_segment(aes(xend = x, yend = 0, colour = x)) + theme(panel.background = element_rect(fill = 'white', colour = 'white')) +
-    scale_color_gradient(low = '#00F260', high = '#0575E6')
-   
-  return(print(myPlot))
-  
-  
-  
-  # or : 
-  # q <- density(x) 
-  # plot(q)
-  
+expgen=function(n, exp.rate= 1){
+  rand = cugen(n)
+  answer=c()
+  for(i in 1:n){
+    answer=c(answer,-log(rand[i])/exp.rate)
+  }
+  return(answer)
+}
+
+gagen=function(n, gam.shape= 5, gam.rate= 1){
+  answer=c()
+  for(i in 1:n){
+    answer=c(answer,sum(expgen(gam.shape, gam.rate)))
+  }
+  return(answer)
+}
+
+geometric <- function(p = 0.5){
+  u <- cugen(1)
+  floor(log(u)/log(1 - p))
+}
+
+geom_n <- function(n = 500, geom.prob=0.5){
+  return(replicate(n,geometric(geom.prob)))
 }
 
 
 
-
-
-
-
-server <- function(input, output) {
-  
-  
-  
-  bernouliData <- eventReactive(input$bernouliSubmit,{
-    
-    validate(
-      need(is.numeric(input$bernouliP),"Please enter a valid number"),
-      need(input$bernouliP >= 0 && input$bernouliP <= 1,"P must be between 0 and 1")
-    )
-    
-    
-    brgenPlot(input$sliderBernouli,as.numeric(input$bernouliP))
-  })
-  
-  output$plotBernouli <- renderPlot({
-    bernouliData()
-  })
-  
-  binomialData <- eventReactive(input$binomialSubmit,{
-    
-    validate(
-      need(is.numeric(input$binomialN),"Please enter a valid number"),
-      need(is.numeric(input$binomialP),"Please enter a valid number"),
-      need(input$binomialP >= 0 && input$binomialP <= 1,"P must be between 0 and 1")
-    )
-    
-    
-    bigenPlot(input$sliderBinomial,as.numeric(input$binomialN),as.numeric(input$binomialP))
-  })
-  
-  output$plotBinomial <- renderPlot({
-    binomialData()
-  })
-  
-  normalData <- eventReactive(input$normalSubmit,{
-    
-    validate(
-      need(is.numeric(input$normalVariance),"Please enter a valid number"),
-      need(is.numeric(input$normalMean),"Please enter a valid number"),
-      need(input$normalVariance > 0,"Variance must be positive")
-    )
-    
-    
-    nogenPlot(input$sliderNormal,as.numeric(input$normalMean),as.numeric(input$normalVariance))
-  })
-  
-  
-  
-  output$plotNormal <- renderPlot({
-    normalData()
-  })
+gegen <- function(p){
+  sum <- 0
+  while(TRUE){
+    u <- brgen(p)
+    if(u == 0){
+      sum <- sum + 1
+    }
+    else{
+      return(sum)
+    }
+  }
 }
+
+
+pogen <- function(lambda, t){
+  if(t == 0){
+    return(0)
+  }
+  nums <- 0
+  time <- 0
+  while(time < t){
+    time <- time + expgen(lambda, 1)
+    nums <- nums + 1
+  }
+  
+  return(nums - 1)
+}
+
+
+shinyServer(function(input,output){
+  dat <- reactive({
+    dist <- switch(input$dist,
+                   bern=brgen_n, bin=bigen_n,
+                   geom=geom_n, poi=rpois2, # remaining
+                   exp=expgen, gam=gagen, # continuous
+                   norm=nogen_n, unif=dugen
+    )
+    
+    def.args <- switch(input$dist,
+                       # discrete
+                       bern=c(input$bern.prob),
+                       bin=c(input$binom.size,input$binom.prob),
+                       geom=c(input$geom.prob),
+                       poi=c(input$poi.lambda),
+                       # continuous
+                       exp=c(input$exp.rate),
+                       gam=c(input$gam.shape,input$gam.rate),
+                       norm=c(input$mean,input$sd),
+                       unif=c(input$min,input$max)
+                       
+    )
+    
+    f <- formals(dist)
+    f <- f[names(f)!="nn" & names(f)!="n"]
+    if(any(input$dist==c("dunif","hgeom"))){
+      len <- min(length(f),4-1); f <- f[1:len]
+    } 
+    else{
+      len <- min(length(f),3-1);
+      f <- f[1:len]
+    }
+    argList <- list(n=input$n)
+    for(i in 1:len)
+      argList[[names(f)[i]]] <- def.args[i]
+    
+    return(list(do.call(dist, argList),
+                names(f))
+           )
+  })
+  
+  output$dist1 <- renderUI({
+    input$dist
+    isolate({
+      lab <- switch(input$dist,
+                    bern="Probability:", bin="Size:", geom="Probability:",poi="Mean and Variance:", # discrete
+                    exp="Rate:", gam="Shape:",
+                    norm="Mean:", unif="Minimum:"
+      )
+      ini <- switch(input$dist,
+                    bern=0.5, bin=10, geom=0.5, poi=10,	# discrete
+                    exp=1, gam=1, norm=0, unif=0 # continuous
+      )
+      numericInput(dat()[[2]][1],lab,ini)
+    })
+  })
+  
+  output$dist2 <- renderUI({
+    input$dist
+    isolate({
+      lab <- switch(input$dist,
+                    bin="Probability:", # discrete
+                    gam="Rate:", # continuous
+                    norm="Standard deviation:",unif="Maximum:"
+      )
+      ini <- switch(input$dist,
+                    bin=0.5,
+                    gam=1, norm=1, unif=1
+      )
+      if(any(input$dist==c("bin","dunif","hgeom","nbin","cauchy","lap","logi","pareto","weib",
+                           "beta","F","gam","lognorm","norm","unif"))) numericInput(dat()[[2]][2],lab,ini)
+    })
+  })
+  
+  output$dist3 <- renderUI({
+    input$dist
+    isolate({
+      lab <- switch(input$dist,
+                    dunif="Step size:",	hgeom="K:")
+      ini <- switch(input$dist,
+                    dunif=1, hgeom=5)
+      if(any(input$dist==c("dunif","hgeom"))) numericInput(dat()[[2]][3],lab,ini)
+    })
+  })
+  
+  output$dldat <- downloadHandler(
+    filename = function() { paste(input$dist, '.csv', sep='') },
+    content = function(file) {
+      write.csv(data.frame(x=dat()[[1]]), file)
+    }
+  )
+  
+  is_discrete <- function(str){
+    if(str == "bern") return(TRUE)
+    if(str == "bin") return(TRUE)
+    if(str == "geom") return(TRUE)
+    if(str == "poi") return(TRUE)
+    return(FALSE)
+  }
+  
+  doPlot <- function(){
+    d <- dat()[[1]]
+    dist <- input$dist
+    n <- input$n
+    expr <- get(paste("expr", dist, sep="."));
+    
+    
+    
+    if(is_discrete(dist)){
+      d <- table(d)
+      d <- data.frame(x = factor(names(d), levels = names(d)), y = as.numeric(d) / n)
+      ymx <- 1.25*max(d$y)
+      ggplot(d, aes(x, y)) + geom_col(colour = "black", fill = "#FF9999") + 
+        labs(x = "Observations", y = "Density") +
+        annotate("text", x = -Inf, y = ymx, hjust = -1, vjust = 1.5, size = 7, label = as.character(expr), parse = TRUE) +
+        scale_y_continuous(expand = c(0, 0))  +
+        #theme_gray(base_size = 18)
+        theme_light(base_size = 18) 
+        
+    } else {
+      d <- data.frame(x = d)
+      ggplot(d, aes(x, y=..density..)) + geom_histogram(colour = "black", fill = "#FF9999", bins = 15) + 
+        geom_line(stat = "density", adjust = 2) +
+        labs(x = "Observations", y = "Density") +
+        annotate("text", x = -Inf, y = Inf, hjust = -1, vjust = 1.5, size = 7, label = as.character(expr), parse = TRUE) +
+        #scale_y_continuous(expand = expand_scale(mult = c(0, 0.25))) +
+        #theme_gray(base_size = 18)
+        #theme_light(base_size = 18)  +
+        theme(panel.background = element_rect(fill = 'white', colour = 'white')) +
+        scale_color_gradient(low = '#00F260', high = '#0575E6') 
+    }
+  }
+  
+  output$plot <- renderPlot({
+    doPlot()
+  },
+  height=750, width=1000
+  )
+  
+  output$summary <- renderPrint({
+    summary(dat()[[1]])
+  })
+  
+  output$dldat <- downloadHandler(
+    filename = function() { paste(input$dist, '.csv', sep='') },
+    content = function(file) {
+      write.csv(data.frame(x=dat()[[1]]), file)
+    }
+  )
+  
+})
