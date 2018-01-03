@@ -35,6 +35,7 @@ shinyUI(fluidPage(theme=shinytheme("united"),
                              tabPanel("Plot", plotOutput("plot",height="auto")),
                              tabPanel("Summary",verbatimTextOutput("summary")),
                              tabPanel("Estimation",
+                                      
                                       plotOutput("esPlot", height = "auto")                                          
                                       )
                            )

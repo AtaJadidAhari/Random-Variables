@@ -45,10 +45,10 @@ setMethod(f="init",
               temp = bitAnd(s, 0xffff0000)
               temp = bitShiftR(temp, 16)
               temp = temp * 1812433253
-              temp = temp %% (2^32)
+              temp = temp %% (2^31)
               temp = bitShiftL(temp, 16)
               temp = temp + bitAnd(s, 0x0000ffff) * 1812433253
-              temp = temp %% (2^32)
+              temp = temp %% (2^31)
               temp = temp + i - 1
               this@state[i] = temp
               
@@ -245,6 +245,12 @@ pogen <- function(lambda, t){
   return(nums - 1)
 }
 
+dugen_n <- function(n= 500, min= 0, max= 1) {
+  random_nums <- rgenerator(seed = as.integer((as.double(Sys.time())*1000+Sys.getpid()) %% 2^31), numOfReapeat = n)
+  v <- min +  random_nums * (max - min) / 4294967296.0  	
+  return(v)
+}
+
 
 shinyServer(function(input,output){
   dat <- reactive({
@@ -252,7 +258,7 @@ shinyServer(function(input,output){
                    bern=brgen_n, bin=bigen_n,
                    geom=geom_n, poi=rpois2, # remaining
                    exp=expgen, gam=gagen, # continuous
-                   norm=nogen_n, unif=dugen
+                   norm=nogen_n, unif=dugen_n
     )
     
     def.args <- switch(input$dist,
@@ -343,12 +349,13 @@ shinyServer(function(input,output){
     return(FALSE)
   }
   
+  a <- ""
   doPlot <- function(){
     d <- dat()[[1]]
     dist <- input$dist
+    a <<- dist
     n <- input$n
     expr <- get(paste("expr", dist, sep="."));
-    
     
     
     if(is_discrete(dist)){
@@ -398,11 +405,12 @@ shinyServer(function(input,output){
       return(NULL)
     
     input <- read.table(inFile$datapath, sep = " ")
-    dist_name <- input$dist
+    dist <- input$dist
     toPlot <- "They will not control us, we will be victorious"
     ans <- "Muse - Uprising, And nothing else"
     
-    if(dist_name == "bern"){
+    print(a)
+    if(a == "bern"){
       k <- 0
       for(i in 1:length(input)){
         if(input[,i] == 1){
@@ -412,11 +420,11 @@ shinyServer(function(input,output){
       
       ans <- "the parameter of this Bernoulli distribution is: "
       ans <- paste0(ans, (k/length(input)))
-      print(ans)
+      
       toPlot <- unlist(input, use.names = FALSE)
       toPlot <- append(toPlot, brgen((k/length(input))))
     }
-    else if(dist_name == "bin"){
+    else if(a == "bin"){
       k <- 0
       for(i in 1:length(input)){
         if(input[,i] == 1){
@@ -428,11 +436,11 @@ shinyServer(function(input,output){
       ans <- paste0(ans, ",")
       ans <- paste0(ans, (k/length(input)))
       ans <- paste0(ans, ")")
-      print(ans)
+      
       toPlot <- unlist(input, use.names = FALSE)
       toPlot <- append(toPlot, bigen((k/length(input)), length(input)))
     }
-    else if(dist_name == "geom"){
+    else if(a == "geom"){
       sum <- 0
       for(i in 1 : length(input)){
         sum <- sum + input[, i]
@@ -440,12 +448,10 @@ shinyServer(function(input,output){
       p <- (length(input)/sum)
       ans <- "the parameter of this Geometric distribution is: "
       ans <- paste0(ans, p)
-      print(ans)
-      
       toPlot <- unlist(input, use.names = FALSE)
       toPlot <- append(toPlot, gegen(p))
     }
-    else if(dist_name == "poi"){
+    else if(a == "poi"){
       sum <- 0
       for(i in 1 : length(input)){
         sum <- sum + input[, i]
@@ -453,12 +459,10 @@ shinyServer(function(input,output){
       lambda = (sum/length(input))
       ans <- "the parameter of this Poisson distribution is: "
       ans <- paste0(ans, lambda)
-      print(ans)
-      
       toPlot <- unlist(input, use.names = FALSE)
       toPlot <- append(toPlot, rpois(1,lambda))
     }
-    else if(dist_name == "unif"){
+    else if(a == "unif"){
       max = input[,1]
       min = input[,1]
       
@@ -475,11 +479,11 @@ shinyServer(function(input,output){
       ans <- paste0(ans, ",")
       ans <- paste0(ans, max)
       ans <- paste0(ans, ")")
-      print(ans)
+      
       toPlot <- unlist(input, use.names = FALSE)
       toPlot <- append(toPlot, dugen(1, min, max))
     }
-    else if(dist_name == "norm"){
+    else if(a == "norm"){
       sum <- 0
       for(i in 1 : length(input)){
         sum <- sum + input[, i]
@@ -496,12 +500,11 @@ shinyServer(function(input,output){
       ans <- paste0(ans, ",")
       ans <- paste0(ans, sigma)
       ans <- paste0(ans, ")")
-      print(ans)
       
       toPlot <- unlist(input, use.names = FALSE)
       toPlot <- append(toPlot, nogen(mu, sigma))
     }
-    else if(dist_name == "gam"){
+    else if(a == "gam"){
       sum <- 0
       for(i in 1 : length(input)){
         sum <- sum + input[, i]
@@ -520,10 +523,10 @@ shinyServer(function(input,output){
       ans <- paste0(ans, ",")
       ans <- paste0(ans, b)
       ans <- paste0(ans, ")")
-      print(ans)
+      
       #TODO // Not complete yet
     }
-    else if(dist_name == "exp"){
+    else if(a == "exp"){
       sum <- 0
       for(i in 1 : length(input)){
         sum <- sum + input[, i]
@@ -531,17 +534,17 @@ shinyServer(function(input,output){
       lambda <- (sum / length(input))
       ans <- "the parameter of this Exponential distribution is: "
       ans <- paste0(ans, lambda)
-      print(ans)
+      
       toPlot <- unlist(input, use.names = FALSE)
       toPlot <- append(toPlot, expgen(lambda))
     }
     
-    ggplot(toPlot, aes(x, y=..density..)) + geom_histogram(colour = "black", fill = "#FF9999", bins = 15) + 
-      geom_line(stat = "density", adjust = 2) +
+    
+    ggplot(data.frame(toPlot), aes(toPlot)) + geom_histogram(colour = "black", fill = "#FF9999", bins = 15) + 
       labs(x = "Observations", y = "Density") +
-      annotate("text", x = -Inf, y = Inf, hjust = -1, vjust = 1.5, size = 7, label = as.character(ans), parse = TRUE) +
-      theme_light(base_size = 18)  +
-      theme(panel.background = element_rect(fill = 'white', colour = 'white'))
+      theme_light(base_size = 18) +
+      geom_density() + 
+      ggtitle(ans)
     
   }
   
