@@ -102,7 +102,7 @@ geoEst <- function(fileName){
   print(ans)
   
   toPlot <- unlist(input, use.names = FALSE)
-  toPlot <- append(toPlot, geogen(p))
+  toPlot <- append(toPlot, gegen(p))
   library(ggplot2)
   ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()
   
