@@ -515,8 +515,14 @@ shinyServer(function(input,output){
       }
       ln <- -ln + log(sum/(length(input)))
       a <- (0.5 / ln)
-      
       b <- (sum / (length(input)*a))
+      notList <- unlist(input, use.names = FALSE)
+      
+      m <- mean(notList)
+      v <- var(notList)
+      
+      a <- m^2/v
+      b <- m/v
       
       ans <- "the parameters of this Gamma distribution is: ("
       ans <- paste0(ans, a)
@@ -524,7 +530,10 @@ shinyServer(function(input,output){
       ans <- paste0(ans, b)
       ans <- paste0(ans, ")")
       
-      #TODO // Not complete yet
+      newnum <- gagen(1,a,b)
+      
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, newnum)
     }
     else if(a == "exp"){
       sum <- 0
@@ -540,10 +549,7 @@ shinyServer(function(input,output){
     }
     
     
-    ggplot(data.frame(toPlot), aes(toPlot)) + geom_histogram(colour = "black", fill = "#FF9999", bins = 15) + 
-      labs(x = "Observations", y = "Density") +
-      theme_light(base_size = 18) +
-      geom_density() + 
+    ggplot(data.frame(toPlot),aes(toPlot)) + geom_density() + theme_light(base_size = 18) + 
       ggtitle(ans)
     
   }

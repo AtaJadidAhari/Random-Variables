@@ -147,7 +147,6 @@ expEst <- function(fileName){
 gammaEst <- function(fileName){
   input <- read.table(fileName , sep = " ")
   
-  
   sum <- 0
   for(i in 1 : length(input)){
     sum <- sum + input[, i]
