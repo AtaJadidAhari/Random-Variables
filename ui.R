@@ -20,15 +20,23 @@ shinyUI(fluidPage(theme=shinytheme("united"),
                              uiOutput("dist1"),
                              uiOutput("dist2"),
                              uiOutput("dist3"),
-                             fluidRow(
-                               column(6, downloadButton("dldat", "Download Sample", class="btn-block btn-warning"))
-                             )
+                  
+                             downloadButton("dldat", "Download Sample", class="btn-block btn-warning"),
+                             fileInput(inputId="esUp", label = "Upload data to estimate", multiple = FALSE, accept = c(
+                               "text",
+                               "text/comma-separated-values,text/plain"
+                               ),
+                               width = NULL,
+                                       buttonLabel = "Browse...", placeholder = "No file selected")
                            )
                     ),
                     column(8,
                            tabsetPanel(
-                             tabPanel("Plot",plotOutput("plot",height="auto")),
-                             tabPanel("Summary",verbatimTextOutput("summary"))
+                             tabPanel("Plot", plotOutput("plot",height="auto")),
+                             tabPanel("Summary",verbatimTextOutput("summary")),
+                             tabPanel("Estimation",
+                                      plotOutput("esPlot", height = "auto")                                          
+                                      )
                            )
                     )
                   )

@@ -218,8 +218,6 @@ geom_n <- function(n = 500, geom.prob=0.5){
   return(replicate(n,geometric(geom.prob)))
 }
 
-
-
 gegen <- function(p){
   sum <- 0
   while(TRUE){
@@ -232,7 +230,6 @@ gegen <- function(p){
     }
   }
 }
-
 
 pogen <- function(lambda, t){
   if(t == 0){
@@ -274,13 +271,10 @@ shinyServer(function(input,output){
     
     f <- formals(dist)
     f <- f[names(f)!="nn" & names(f)!="n"]
-    if(any(input$dist==c("dunif","hgeom"))){
-      len <- min(length(f),4-1); f <- f[1:len]
-    } 
-    else{
-      len <- min(length(f),3-1);
-      f <- f[1:len]
-    }
+    
+    len <- min(length(f),3-1);
+    f <- f[1:len]
+    
     argList <- list(n=input$n)
     for(i in 1:len)
       argList[[names(f)[i]]] <- def.args[i]
@@ -374,11 +368,8 @@ shinyServer(function(input,output){
         geom_line(stat = "density", adjust = 2) +
         labs(x = "Observations", y = "Density") +
         annotate("text", x = -Inf, y = Inf, hjust = -1, vjust = 1.5, size = 7, label = as.character(expr), parse = TRUE) +
-        #scale_y_continuous(expand = expand_scale(mult = c(0, 0.25))) +
-        #theme_gray(base_size = 18)
-        #theme_light(base_size = 18)  +
-        theme(panel.background = element_rect(fill = 'white', colour = 'white')) +
-        scale_color_gradient(low = '#00F260', high = '#0575E6') 
+        theme_light(base_size = 18)  +
+        theme(panel.background = element_rect(fill = 'white', colour = 'white'))
     }
   }
   
@@ -390,6 +381,7 @@ shinyServer(function(input,output){
   
   output$summary <- renderPrint({
     summary(dat()[[1]])
+    
   })
   
   output$dldat <- downloadHandler(
@@ -398,5 +390,164 @@ shinyServer(function(input,output){
       write.csv(data.frame(x=dat()[[1]]), file)
     }
   )
+  
+  doplot2 <- function(){
+    inFile <- input$esUp
+    
+    if(is.null(inFile))
+      return(NULL)
+    
+    input <- read.table(inFile$datapath, sep = " ")
+    dist_name <- input$dist
+    toPlot <- "They will not control us, we will be victorious"
+    ans <- "Muse - Uprising, And nothing else"
+    
+    if(dist_name == "bern"){
+      k <- 0
+      for(i in 1:length(input)){
+        if(input[,i] == 1){
+          k <- k +1
+        }
+      }
+      
+      ans <- "the parameter of this Bernoulli distribution is: "
+      ans <- paste0(ans, (k/length(input)))
+      print(ans)
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, brgen((k/length(input))))
+    }
+    else if(dist_name == "bin"){
+      k <- 0
+      for(i in 1:length(input)){
+        if(input[,i] == 1){
+          k <- k +1
+        }
+      }
+      ans <- "the parameters of this Binomial distribution is: ("
+      ans <- paste0(ans, length(input))
+      ans <- paste0(ans, ",")
+      ans <- paste0(ans, (k/length(input)))
+      ans <- paste0(ans, ")")
+      print(ans)
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, bigen((k/length(input)), length(input)))
+    }
+    else if(dist_name == "geom"){
+      sum <- 0
+      for(i in 1 : length(input)){
+        sum <- sum + input[, i]
+      }
+      p <- (length(input)/sum)
+      ans <- "the parameter of this Geometric distribution is: "
+      ans <- paste0(ans, p)
+      print(ans)
+      
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, gegen(p))
+    }
+    else if(dist_name == "poi"){
+      sum <- 0
+      for(i in 1 : length(input)){
+        sum <- sum + input[, i]
+      }
+      lambda = (sum/length(input))
+      ans <- "the parameter of this Poisson distribution is: "
+      ans <- paste0(ans, lambda)
+      print(ans)
+      
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, rpois(1,lambda))
+    }
+    else if(dist_name == "unif"){
+      max = input[,1]
+      min = input[,1]
+      
+      for(i in 1:length(input)){    
+        if(input[, i] > max){
+          max = input[,i]
+        }
+        if(input[, i] < min){
+          min = input[,i]
+        }  
+      }
+      ans <- "the interval of this uniform distribution is: ("
+      ans <- paste0(ans, min)
+      ans <- paste0(ans, ",")
+      ans <- paste0(ans, max)
+      ans <- paste0(ans, ")")
+      print(ans)
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, dugen(1, min, max))
+    }
+    else if(dist_name == "norm"){
+      sum <- 0
+      for(i in 1 : length(input)){
+        sum <- sum + input[, i]
+      }
+      mu <- (sum/length(input))
+      sigma <- 0
+      for(i in 1 : length(input)){
+        mu <- mu + (mu - input[, i])**2
+      }
+      sigma <- (sigma/length(input))
+      
+      ans <- "the parameters of this Normal distribution is: ("
+      ans <- paste0(ans, mu)
+      ans <- paste0(ans, ",")
+      ans <- paste0(ans, sigma)
+      ans <- paste0(ans, ")")
+      print(ans)
+      
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, nogen(mu, sigma))
+    }
+    else if(dist_name == "gam"){
+      sum <- 0
+      for(i in 1 : length(input)){
+        sum <- sum + input[, i]
+      }
+      ln <- 0
+      for(i in 1: length(input)){
+        ln <- ln + log(input[, i])
+      }
+      ln <- -ln + log(sum/(length(input)))
+      a <- (0.5 / ln)
+      
+      b <- (sum / (length(input)*a))
+      
+      ans <- "the parameters of this Gamma distribution is: ("
+      ans <- paste0(ans, a)
+      ans <- paste0(ans, ",")
+      ans <- paste0(ans, b)
+      ans <- paste0(ans, ")")
+      print(ans)
+      #TODO // Not complete yet
+    }
+    else if(dist_name == "exp"){
+      sum <- 0
+      for(i in 1 : length(input)){
+        sum <- sum + input[, i]
+      }
+      lambda <- (sum / length(input))
+      ans <- "the parameter of this Exponential distribution is: "
+      ans <- paste0(ans, lambda)
+      print(ans)
+      toPlot <- unlist(input, use.names = FALSE)
+      toPlot <- append(toPlot, expgen(lambda))
+    }
+    
+    ggplot(toPlot, aes(x, y=..density..)) + geom_histogram(colour = "black", fill = "#FF9999", bins = 15) + 
+      geom_line(stat = "density", adjust = 2) +
+      labs(x = "Observations", y = "Density") +
+      annotate("text", x = -Inf, y = Inf, hjust = -1, vjust = 1.5, size = 7, label = as.character(ans), parse = TRUE) +
+      theme_light(base_size = 18)  +
+      theme(panel.background = element_rect(fill = 'white', colour = 'white'))
+    
+  }
+  
+  output$esPlot <- renderPlot({
+    doplot2()
+  },
+  height=750, width=1000)
   
 })

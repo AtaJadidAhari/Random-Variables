@@ -9,15 +9,13 @@ uniEst <- function(fileName) {
   max = input[,1]
   min = input[,1]
 
-  for(i in 1:length(input)){
-    
+  for(i in 1:length(input)){    
     if(input[, i] > max){
       max = input[,i]
     }
     if(input[, i] < min){
       min = input[,i]
-    }
-    
+    }  
   }
   ans <- "the interval of this uniform distribution is: ("
   ans <- paste0(ans, min)
@@ -29,8 +27,6 @@ uniEst <- function(fileName) {
   toPlot <- append(toPlot, dugen(min, max))
   library(ggplot2)
   ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()
- 
-  
 }
 #uniformEstimator("test.txt")
 
@@ -47,18 +43,14 @@ beEst <- function(fileName) {
       k <- k +1
     }
   }
-  
-  
+    
   ans <- "the parameter of this Bernoulli distribution is: "
   ans <- paste0(ans, (k/length(input)))
   print(ans)
   toPlot <- unlist(input, use.names = FALSE)
   toPlot <- append(toPlot, brgen((k/length(input))))
   library(ggplot2)
-  ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()
-  
-  
-              
+  ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()              
 }
 
 #' @title Binomial estimator
@@ -85,9 +77,7 @@ biEst <- function(fileName){
 
   toPlot <- append(toPlot, bigen((k/length(input)), length(input)))
   library(ggplot2)
-  ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()
-  
-  
+  ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()  
 }
 #binomialEstimator("test.txt")
 
@@ -169,16 +159,14 @@ gammaEst <- function(fileName){
   
   b <- (sum / (length(input)*a))
   
-  ans <- "the parameters of this Normal distribution is: ("
+  ans <- "the parameters of this Gamma distribution is: ("
   ans <- paste0(ans, a)
   ans <- paste0(ans, ",")
   ans <- paste0(ans, b)
   ans <- paste0(ans, ")")
   print(ans)
   
-  
-  
-  
+   
 }
 
 
@@ -238,8 +226,5 @@ noEst <- function(fileName){
   toPlot <- unlist(input, use.names = FALSE)
   toPlot <- append(toPlot, nogen(mu, sigma))
   library(ggplot2)
-  ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()
-  
-  
+  ggplot(data.frame(toPlot),aes(toPlot)) + geom_density() 
 }
-
