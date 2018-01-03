@@ -146,6 +146,8 @@ expEst <- function(fileName){
 #'  prints a random number with estimated parameters and plots the distribution using ggplot2
 gammaEst <- function(fileName){
   input <- read.table(fileName , sep = " ")
+  
+  
   sum <- 0
   for(i in 1 : length(input)){
     sum <- sum + input[, i]
@@ -156,8 +158,14 @@ gammaEst <- function(fileName){
   }
   ln <- -ln + log(sum/(length(input)))
   a <- (0.5 / ln)
-  
   b <- (sum / (length(input)*a))
+  notList <- unlist(input, use.names = FALSE)
+  
+  m <- mean(notList)
+  v <- var(notList)
+ 
+  a <- m^2/v
+  b <- m/v
   
   ans <- "the parameters of this Gamma distribution is: ("
   ans <- paste0(ans, a)
@@ -165,6 +173,13 @@ gammaEst <- function(fileName){
   ans <- paste0(ans, b)
   ans <- paste0(ans, ")")
   print(ans)
+  newnum <- gagen(1,a,b)
+  
+  toPlot <- unlist(input, use.names = FALSE)
+  toPlot <- append(toPlot, newnum)
+  library(ggplot2)
+  ggplot(data.frame(toPlot),aes(toPlot)) + geom_density()
+  
   
    
 }
